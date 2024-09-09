@@ -1,6 +1,6 @@
 import { MantineProvider } from '@mantine/core';
 import { DatesProvider } from '@mantine/dates';
-import { createRouter, RouterProvider } from '@tanstack/react-router';
+import { createMemoryHistory, createRouter, RouterProvider } from '@tanstack/react-router';
 import dayjs from 'dayjs';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -16,7 +16,13 @@ import { theme } from './style/theme.ts';
 
 dayjs.locale('fr');
 
-const router = createRouter({ routeTree, defaultPreload: 'intent', defaultNotFoundComponent: () => <NotFound /> });
+const memoryHistory = createMemoryHistory();
+const router = createRouter({
+    routeTree,
+    history: memoryHistory,
+    defaultPreload: 'intent',
+    defaultNotFoundComponent: () => <NotFound />,
+});
 
 declare module '@tanstack/react-router' {
     interface Register {

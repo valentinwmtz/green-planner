@@ -29,11 +29,14 @@ export const generateParcelUseCase =
 
     let simulation: Either<Error, readonly FilledParcel[]>;
     if (generateParcelProps.algorithm === 'glouton') {
+      const start = performance.now();
       simulation = startGreedyPlacement(
         generateParcelProps.parcels,
         generateParcelProps.selectedPlants,
         generateParcelProps.personNumber,
       );
+      const end = performance.now();
+      console.log(`Greedy algorithm time: ${(end - start).toFixed(2)}ms`);
     } else
       simulation = startGreedyPlacement(
         generateParcelProps.parcels,

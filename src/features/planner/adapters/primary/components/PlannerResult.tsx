@@ -18,9 +18,18 @@ export const PlannerResult: React.FC<PlannerResultProps> = ({ parcels }) => {
 
     return (
         <div className="m-6">
-            <Title order={2} mb="xl">
+            <Title order={2} mb="lg">
                 Optimized Garden Plan
             </Title>
+            {parcels.length > 1 && (
+                <Title order={4} mb="md">
+                    {parcels.length} parcels for a total of{' '}
+                    {parcels.reduce((total, parcel) => total + parcel.parcel.sizeInSquareMeters, 0).toFixed(2)} m² and a
+                    total remaining space of{' '}
+                    {parcels.reduce((total, parcel) => total + parcel.remainingSpace, 0).toFixed(2)} m²
+                </Title>
+            )}
+
             <Grid gutter="md">
                 {parcels.map((parcel, index) => (
                     <Grid.Col key={parcel.parcel.id}>
@@ -36,7 +45,12 @@ export const PlannerResult: React.FC<PlannerResultProps> = ({ parcels }) => {
                                 <Text>Plants:</Text>
                                 {parcel.plantedCrops.length > 0 ? (
                                     parcel.plantedCrops.map((plant) => (
-                                        <Badge key={plant.plant.id} variant="outline" size="lg">
+                                        <Badge
+                                            key={plant.plant.id}
+                                            variant="outline"
+                                            size="lg"
+                                            color={plant.isIdealPlacement ? 'green' : 'red'}
+                                        >
                                             {plant.plant.name} : {plant.count}
                                         </Badge>
                                     ))

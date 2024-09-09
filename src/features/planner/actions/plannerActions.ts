@@ -1,8 +1,8 @@
 import { createAction } from '@reduxjs/toolkit';
-import { FilledParcel } from '../core-logic/entities/FilledParcel.ts';
+import { GardenPlanResult } from '../core-logic/entities/GreedyGardenPlanner.ts';
 
 export const GENERATE_PARCEL = createAction('GENERATE_PARCEL');
-export const PARCEL_GENERATED = createAction<readonly FilledParcel[]>('PARCEL_GENERATED');
+export const PARCEL_GENERATED = createAction<GardenPlanResult>('PARCEL_GENERATED');
 export const FAILED_TO_GENERATE_PARCEL = createAction<Error>('FAILED_TO_GENERATE_PARCEL');
 export const ASKED_TO_GENERATE_PARCEL = createAction<void>('ASKED_TO_GENERATE_PARCEL');
 

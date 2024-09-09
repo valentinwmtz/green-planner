@@ -7,6 +7,7 @@ export const plannerReducer = createReducer<StoreState['planner']>(
     loading: 'idle',
     error: null,
     generatedParcels: [],
+    generatedParcelsWithDivision: [],
   },
   (builder) => {
     builder.addCase(GENERATE_PARCEL, (state) => {
@@ -15,6 +16,7 @@ export const plannerReducer = createReducer<StoreState['planner']>(
         loading: 'pending',
         error: null,
         generatedParcels: [],
+        generatedParcelsWithDivision: [],
       };
     });
     builder.addCase(ASKED_TO_GENERATE_PARCEL, (state) => {
@@ -23,6 +25,7 @@ export const plannerReducer = createReducer<StoreState['planner']>(
         loading: 'idle',
         error: null,
         generatedParcels: [],
+        generatedParcelsWithDivision: [],
       };
     });
     builder.addCase(PARCEL_GENERATED, (state, action) => {
@@ -30,7 +33,8 @@ export const plannerReducer = createReducer<StoreState['planner']>(
         ...state,
         loading: 'success',
         error: null,
-        generatedParcels: action.payload,
+        generatedParcels: action.payload.withoutDivision,
+        generatedParcelsWithDivision: action.payload.withDivision,
       };
     });
   },

@@ -1,81 +1,111 @@
 import { Either, Left, Right } from 'purify-ts/Either';
-import { addPlantedCrop, createFilledParcel, FilledParcel, getPlantCountInFilledParcel } from './FilledParcel';
-import { Parcel } from './Parcel';
-import { isCompatibleWith, Plant } from './Plant';
+import { addPlantedCrop, createFilledParcel, FilledParcel } from './FilledParcel';
+import { createParcel, Parcel } from './Parcel';
+import { getPlantSpaceRequirement, isCompatibleWith, Plant } from './Plant';
+
+const LARGE_PARCEL_THRESHOLD = 5; // m²
+const MIN_PARCEL_SIZE = 2.5; // m²
 
 const calculateMinPlantsForPerson = (plant: Plant, personNumber: number): number => {
-  const requiredArea = plant.spacing.m2PerPerson * personNumber;
-  return Math.ceil(requiredArea * plant.spacing.plantsPerM2);
+  return Math.ceil(plant.spacing.plantsPerPerPerson * personNumber);
 };
 
-const sortPlantsByCompatibility = (plants: readonly Plant[]): Plant[] =>
-  [...plants].sort((a, b) => b.compatibilityPlants.length - a.compatibilityPlants.length);
-
-const calculateCompatibilityScore = (plant: Plant, filledParcel: FilledParcel): number => {
-  const compatiblePlants = filledParcel.plantedCrops.filter((crop) => isCompatibleWith(plant, crop.plant.id));
-  const uniqueCompatibleSpecies = new Set(compatiblePlants.map((crop) => crop.plant.id)).size;
-  return uniqueCompatibleSpecies * 2 + compatiblePlants.length;
+const canAddPlantToParcel = (parcel: FilledParcel, plant: Plant, count: number): boolean => {
+  const spaceRequired = getPlantSpaceRequirement(plant) * count;
+  return parcel.remainingSpace >= spaceRequired;
 };
 
-const canAddPlantToFilledParcel = (filledParcel: FilledParcel, plant: Plant, count: number): boolean => {
-  const spaceRequired = (1 / plant.spacing.plantsPerM2) * count;
-  return (
-    filledParcel.remainingSpace >= spaceRequired &&
-    filledParcel.plantedCrops.every((crop) => isCompatibleWith(crop.plant, plant.id))
-  );
+const isCompatibleWithAll = (plant: Plant, parcel: FilledParcel): boolean => {
+  return parcel.plantedCrops.every((crop) => isCompatibleWith(plant, crop.plant.id));
 };
 
-const findBestParcel = (
+const calculateCompatibilityScore = (plant: Plant, parcel: FilledParcel): number => {
+  return parcel.plantedCrops.reduce((score, crop) => {
+    if (isCompatibleWith(plant, crop.plant.id)) {
+      score += crop.count;
+    }
+    return score;
+  }, 0);
+};
+
+const findBestParcelForPlant = (
+  parcels: FilledParcel[],
   plant: Plant,
-  filledParcels: FilledParcel[],
-  personNumber: number,
+  count: number,
+  compatibleOnly: boolean,
 ): [FilledParcel, number] | null => {
-  const minPlants = calculateMinPlantsForPerson(plant, personNumber);
+  let bestParcel: FilledParcel | null = null;
+  let bestScore = -1;
+  let bestCount = 0;
 
-  return filledParcels.reduce<[FilledParcel, number] | null>((best, currentParcel) => {
-    const currentPlantCount = getPlantCountInFilledParcel(currentParcel, plant.id);
-    const spaceForNewPlants = Math.floor(currentParcel.remainingSpace * plant.spacing.plantsPerM2);
-    const plantsToAdd = Math.min(minPlants - currentPlantCount, spaceForNewPlants);
+  for (const parcel of parcels) {
+    if (canAddPlantToParcel(parcel, plant, count) && (!compatibleOnly || isCompatibleWithAll(plant, parcel))) {
+      const compatibilityScore = calculateCompatibilityScore(plant, parcel);
+      const maxCount = Math.min(count, Math.floor(parcel.remainingSpace / getPlantSpaceRequirement(plant)));
+      const score = compatibleOnly ? compatibilityScore * maxCount : parcel.remainingSpace;
 
-    if (plantsToAdd <= 0 || !canAddPlantToFilledParcel(currentParcel, plant, plantsToAdd)) {
-      return best;
+      if (score > bestScore) {
+        bestScore = score;
+        bestParcel = parcel;
+        bestCount = maxCount;
+      }
     }
+  }
 
-    const currentScore = calculateCompatibilityScore(plant, currentParcel);
-    const [bestParcel, bestPlantsToAdd] = best || [null, 0];
-    const bestScore = bestParcel ? calculateCompatibilityScore(plant, bestParcel) : -1;
+  return bestParcel ? [bestParcel, bestCount] : null;
+};
 
-    if (currentScore > bestScore || (currentScore === bestScore && plantsToAdd > bestPlantsToAdd)) {
-      return [currentParcel, plantsToAdd];
+const divideLargeParcels = (parcels: readonly Parcel[]): Parcel[] => {
+  return parcels.flatMap((parcel) => {
+    if (parcel.sizeInSquareMeters > LARGE_PARCEL_THRESHOLD) {
+      const numDivisions = Math.floor(parcel.sizeInSquareMeters / MIN_PARCEL_SIZE);
+      const newSize = parcel.sizeInSquareMeters / numDivisions;
+      return Array.from({ length: numDivisions }, (_, index) => createParcel(`${parcel.id}-${index + 1}`, newSize));
     }
-
-    return best;
-  }, null);
+    return [parcel];
+  });
 };
 
 const runGreedyPlacement = (
   parcels: readonly Parcel[],
   plants: readonly Plant[],
   personNumber: number,
+  divideParcels: boolean,
 ): FilledParcel[] => {
-  const sortedPlants = sortPlantsByCompatibility(plants);
-  let filledParcels = parcels.map(createFilledParcel);
+  const initialParcels = divideParcels ? divideLargeParcels(parcels) : parcels;
+  let filledParcels = initialParcels.map(createFilledParcel);
 
-  for (const plant of sortedPlants) {
+  // First pass: place plants prioritizing compatibility
+  for (const plant of plants) {
     let remainingPlants = calculateMinPlantsForPerson(plant, personNumber);
 
     while (remainingPlants > 0) {
-      const best = findBestParcel(plant, filledParcels, personNumber);
+      const best = findBestParcelForPlant(filledParcels, plant, remainingPlants, true);
       if (!best) break;
 
-      const [bestParcel, plantsToAdd] = best;
-      const parcelIndex = filledParcels.findIndex((p) => p.parcel.id === bestParcel.parcel.id);
-      filledParcels[parcelIndex] = addPlantedCrop(bestParcel, plant, plantsToAdd);
+      const [parcel, plantsToAdd] = best;
+      const parcelIndex = filledParcels.findIndex((p) => p.parcel.id === parcel.parcel.id);
+      filledParcels[parcelIndex] = addPlantedCrop(parcel, plant, plantsToAdd, true);
       remainingPlants -= plantsToAdd;
     }
   }
 
-  return filledParcels;
+  // Second pass: fill remaining space with any plants, compatible or not
+  let allPlantsPlaced = false;
+  while (!allPlantsPlaced) {
+    allPlantsPlaced = true;
+    for (const plant of plants) {
+      const best = findBestParcelForPlant(filledParcels, plant, Number.MAX_SAFE_INTEGER, false);
+      if (best) {
+        const [parcel, plantsToAdd] = best;
+        const parcelIndex = filledParcels.findIndex((p) => p.parcel.id === parcel.parcel.id);
+        filledParcels[parcelIndex] = addPlantedCrop(parcel, plant, plantsToAdd, false);
+        allPlantsPlaced = false;
+      }
+    }
+  }
+
+  return filledParcels.filter((parcel) => parcel.plantedCrops.length > 0);
 };
 
 const evaluateConfiguration = (filledParcels: FilledParcel[], personNumber: number): number =>
@@ -93,20 +123,28 @@ const evaluateConfiguration = (filledParcels: FilledParcel[], personNumber: numb
     filledParcel.plantedCrops.forEach((crop) => {
       const minPlants = calculateMinPlantsForPerson(crop.plant, personNumber);
       if (crop.count >= minPlants) {
-        parcelScore += 5;
+        parcelScore += crop.isIdealPlacement ? 10 : 5; // Higher bonus for compatible placements
       }
     });
 
-    parcelScore += filledParcel.plantedCrops.length * 2;
+    parcelScore += filledParcel.plantedCrops.length * 2; // Reward diversity
+    parcelScore += Math.floor((1 - filledParcel.remainingSpace / filledParcel.parcel.sizeInSquareMeters) * 5); // Reward space utilization
 
     return totalScore + parcelScore;
   }, 0);
+
+export type GardenPlanResult = {
+  withoutDivision: FilledParcel[];
+  withDivision: FilledParcel[];
+  scoreWithoutDivision: number;
+  scoreWithDivision: number;
+};
 
 export const startGreedyPlacement = (
   parcels: readonly Parcel[],
   plants: readonly Plant[],
   personNumber: number,
-): Either<Error, readonly FilledParcel[]> => {
+): Either<Error, GardenPlanResult> => {
   if (parcels.length === 0) {
     return Left(new Error('At least one parcel is required'));
   }
@@ -117,8 +155,19 @@ export const startGreedyPlacement = (
     return Left(new Error('Person number must be greater than zero'));
   }
 
-  const finalConfiguration = runGreedyPlacement(parcels, plants, personNumber);
-  const score = evaluateConfiguration(finalConfiguration, personNumber);
-  console.log(`Greedy algorithm score: ${score}`);
-  return Right(finalConfiguration);
+  const withoutDivision = runGreedyPlacement(parcels, plants, personNumber, false);
+  const withDivision = runGreedyPlacement(parcels, plants, personNumber, true);
+
+  const scoreWithoutDivision = evaluateConfiguration(withoutDivision, personNumber);
+  const scoreWithDivision = evaluateConfiguration(withDivision, personNumber);
+
+  console.log(`Greedy algorithm score without division: ${scoreWithoutDivision}`);
+  console.log(`Greedy algorithm score with division: ${scoreWithDivision}`);
+
+  return Right({
+    withoutDivision,
+    withDivision,
+    scoreWithoutDivision,
+    scoreWithDivision,
+  });
 };

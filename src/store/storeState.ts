@@ -7,6 +7,7 @@ export interface StoreState {
     loading: LoadingStatus;
     error: Error | null;
     generatedParcels: readonly FilledParcel[];
+    generatedParcelsWithDivision: readonly FilledParcel[];
   };
   plants: {
     loading: LoadingStatus;

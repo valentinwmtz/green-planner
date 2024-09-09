@@ -2,8 +2,7 @@ import { Either } from 'purify-ts/Either';
 import { AppThunk } from '../../../../../store/store.ts';
 import { FAILED_TO_GENERATE_PARCEL, GENERATE_PARCEL, PARCEL_GENERATED } from '../../../actions/plannerActions.ts';
 import { PlanFormValues } from '../../../adapters/primary/components/PlanForm.tsx';
-import { FilledParcel } from '../../entities/FilledParcel.ts';
-import { startGreedyPlacement } from '../../entities/GreedyGardenPlanner.ts';
+import { GardenPlanResult, startGreedyPlacement } from '../../entities/GreedyGardenPlanner.ts';
 import { createParcel, Parcel } from '../../entities/Parcel.ts';
 import { Plant } from '../../entities/Plant.ts';
 
@@ -27,7 +26,9 @@ export const generateParcelUseCase =
       selectedPlants: getState().plants.plants.filter((plant) => plan.plantsId.includes(plant.id)),
     };
 
-    let simulation: Either<Error, readonly FilledParcel[]>;
+    console.log(generateParcelProps);
+
+    let simulation: Either<Error, GardenPlanResult>;
     if (generateParcelProps.algorithm === 'glouton') {
       const start = performance.now();
       simulation = startGreedyPlacement(

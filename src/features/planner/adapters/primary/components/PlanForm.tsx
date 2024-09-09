@@ -114,7 +114,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ plants, plantsLoading }) => 
                                         }}
                                         onClick={() => togglePlant(plant.id)}
                                     >
-                                        <Text>
+                                        <Text className="text-center break-words">
                                             #{plant.id} {plant.name}
                                         </Text>
                                     </Card>

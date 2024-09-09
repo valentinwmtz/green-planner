@@ -40,3 +40,5 @@ export const createPlant = (
   compatibilityPlants,
   spacing,
 });
+
+export const getPlantSpaceRequirement = (plant: Plant): number => 1 / plant.spacing.plantsPerM2;

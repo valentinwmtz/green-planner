@@ -140,7 +140,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ plants, plantsLoading }) => 
                                         min={1}
                                         value={parcel.size}
                                         style={{ flexGrow: 1, marginRight: '10px' }}
-                                        onChange={(val) => form.setFieldValue(`parcelInM2.${index}.size`, val)}
+                                        onChange={(val) => form.setFieldValue(`parcels.${index}.size`, val)}
                                         error={
                                             form.errors.parcelInM2 &&
                                             (parcel.size <= 0 ? 'Parcel size must be greater than 0' : null)
@@ -160,7 +160,7 @@ export const PlanForm: React.FC<PlanFormProps> = ({ plants, plantsLoading }) => 
                         <Select
                             label="Algorithm"
                             placeholder="Select an algorithm"
-                            data={['glouton', 'monte carlo']}
+                            data={['glouton']}
                             {...form.getInputProps('algorithm')}
                         />
                         <Button

@@ -2,8 +2,8 @@ import { Either } from 'purify-ts/Either';
 import { AppThunk } from '../../../../../store/store.ts';
 import { FAILED_TO_GENERATE_PARCEL, GENERATE_PARCEL, PARCEL_GENERATED } from '../../../actions/plannerActions.ts';
 import { PlanFormValues } from '../../../adapters/primary/components/PlanForm.tsx';
+import { FilledParcel } from '../../entities/FilledParcel.ts';
 import { startGreedyPlacement } from '../../entities/GreedyGardenPlanner.ts';
-import { startMonteCarloSimulation } from '../../entities/MonteCarloGardenPlanner.ts';
 import { createParcel, Parcel } from '../../entities/Parcel.ts';
 import { Plant } from '../../entities/Plant.ts';
 
@@ -27,13 +27,19 @@ export const generateParcelUseCase =
       selectedPlants: getState().plants.plants.filter((plant) => plan.plantsId.includes(plant.id)),
     };
 
-    let simulation: Either<Error, readonly Parcel[]>;
+    let simulation: Either<Error, readonly FilledParcel[]>;
     if (generateParcelProps.algorithm === 'glouton') {
-      simulation = startGreedyPlacement(generateParcelProps.parcels, generateParcelProps.selectedPlants);
-    } else if (generateParcelProps.algorithm === 'monte carlo') {
-      simulation = startMonteCarloSimulation(generateParcelProps.parcels, generateParcelProps.selectedPlants, 10000);
+      simulation = startGreedyPlacement(
+        generateParcelProps.parcels,
+        generateParcelProps.selectedPlants,
+        generateParcelProps.personNumber,
+      );
     } else
-      simulation = startMonteCarloSimulation(generateParcelProps.parcels, generateParcelProps.selectedPlants, 10000);
+      simulation = startGreedyPlacement(
+        generateParcelProps.parcels,
+        generateParcelProps.selectedPlants,
+        generateParcelProps.personNumber,
+      );
 
     simulation.caseOf({
       Left: (error) => {

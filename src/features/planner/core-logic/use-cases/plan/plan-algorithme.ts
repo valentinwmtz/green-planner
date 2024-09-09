@@ -1,1 +1,1 @@
-export type PlanAlgorithme = 'glouton' | 'monte carlo';
+export type PlanAlgorithme = 'glouton';
